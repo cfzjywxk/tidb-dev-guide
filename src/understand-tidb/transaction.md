@@ -47,6 +47,8 @@ type Transaction interface {
 - Return the memory buffer for write.
 - Set specific operations or flags for the current transaction.
 - Return the snapshot of this transaction.
+- Commit the current transaction.
+- Lock specific keys.
 - etc...
 
 # The Statement Execution
@@ -89,3 +91,9 @@ type Table interface {
 Every statement will use a `staging buffer` during its execution, if it's successful the staging content will be merged into the transaction memory buffer. For example `AddRecord` will try to write an row into the current statement staging buffer, and the `RemoveRecord` will try to remove an row in the staging statement buffer. The transaction memory buffer will not be affected if the statement has failed.
 
 The memory buffer implementation is wrapped in [memBuffer](https://github.com/pingcap/tidb/blob/master/store/driver/txn/unionstore_driver.go#L27). The internal implementation is `MemDB` object.
+
+
+# The Two Phase Commit
+
+After the statement execution phase, the `commit` statement will trigger the commit phase for the current transaction. In TiDB the percolator protocol is used as the distributed transaction protocol, it's a two phase protocol. In the first stage, the transaction coordinator(tidb server) will try to prewrite all the related keys, if all of them are succeessful the transaction coordinator will commit the primary key, after that the transaction is considered succesfully committed, all the other keys will be committed asyncronouslly.
+
