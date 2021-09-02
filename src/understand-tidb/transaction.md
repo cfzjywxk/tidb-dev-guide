@@ -49,11 +49,27 @@ type Transaction interface {
 - Return the snapshot of this transaction.
 - etc...
 
-## The Statement Execution
+# The Statement Execution
 
 Usually the first thing that will be done executing a statment is to `activiate` the related transaction in its session. By default `TiDB` proviedes the snapshot isolation level so in each new transction, a new global strong snapshot will be fetched first before executing statements. In `tidb` the snapshot is repsented by a global tso which is fetched from the `pd` server, and it acts as the unique idetifier for this transaction. After this operation a transaction is regarded as `activated`.
 
-SQL statement writes will write data into the transaction memory buffer temporarily until the `commit` operations is triggered. There are 3 main interfaces which will write query data into the memory buffer, they are the [tables](https://github.com/pingcap/tidb/blob/master/table/table.go#L166) API:
+For the read SQL statements, the [snapshot](https://github.com/pingcap/tidb/blob/master/store/driver/txn/snapshot.go) will be used to provide a global strong consistent snapshot, all the reads will check data visibility using this snapshot. Most executors will set the timestamp doing the build, and the transaction could be activiated by the building process. Some commonly used [snapshot](https://github.com/pingcap/tidb/blob/master/store/driver/txn/snapshot.go#L40) API:
+```
+// BatchGet gets all the keys' value from kv-server and returns a map contains key/value pairs.
+// The map will not contain nonexistent keys.
+func (s *tikvSnapshot) BatchGet(ctx context.Context, keys []kv.Key) (map[string][]byte, error) {
+	data, err := s.KVSnapshot.BatchGet(ctx, toTiKVKeys(keys))
+	return data, extractKeyErr(err)
+}
+
+// Get gets the value for key k from snapshot.
+func (s *tikvSnapshot) Get(ctx context.Context, k kv.Key) ([]byte, error) {
+	data, err := s.KVSnapshot.Get(ctx, k)
+	return data, extractKeyErr(err)
+}
+```
+
+For the write SQL statements, they will write data into the transaction memory buffer temporarily until the `commit` operations is triggered. There are 3 main interfaces which will write query data into the memory buffer, they are the [tables](https://github.com/pingcap/tidb/blob/master/table/table.go#L166) API:
 ```
 // Table is used to retrieve and modify rows in table.
 type Table interface {
@@ -70,6 +86,6 @@ type Table interface {
 }
 ```
 
-Every statement will use a `staging buffer` during its execution, if it's successful the staging content will be merged into the transaction memory buffer. For example `AddRecord` will try to write an row into the current statement staging buffer, and the `RemoveRecord` will try to remove an row in the staging statement buffer.
+Every statement will use a `staging buffer` during its execution, if it's successful the staging content will be merged into the transaction memory buffer. For example `AddRecord` will try to write an row into the current statement staging buffer, and the `RemoveRecord` will try to remove an row in the staging statement buffer. The transaction memory buffer will not be affected if the statement has failed.
 
-## 
+The memory buffer implementation is wrapped in [memBuffer](https://github.com/pingcap/tidb/blob/master/store/driver/txn/unionstore_driver.go#L27). The internal implementation is `MemDB` object.
