@@ -9,7 +9,7 @@ In `TiDB` the transaction write flow is like this:
 ![transaction-architecture](../img/transaction-architecture.png)
 
 After the transaction is started in a session, all the reads and writes will use a snapshot to fetch data, and the write content will be buffered in the memory buffer
-of the transaction. When the `commit` statement is received from the client, the `percolator` protocol will be used to persist these changes to the storage system.
+of the transaction. When the `commit` statement is received from the client, the `percolator` protocol will be used to commit these changes to the storage system.
 
 # The Interface
 
@@ -43,13 +43,16 @@ type Transaction interface {
 }
 ```
 
-[LazyTxn](https://github.com/pingcap/tidb/blob/master/session/txn.go#L50) is a wrapper of the transaction implementations, when the SQL statements are executed in a session context, `LazyTxn` will be used to do things like：
+These are common interfaces the transaction will provide, for example `Commit` will be used to commit the current ongoing transaction. The transaction is considered ongoing before the `commit` operations is triggered. The two phase commit processing will be used to commit a transaction and it will finally become committed or aborted. 
+
+[LazyTxn](https://github.com/pingcap/tidb/blob/master/session/txn.go#L50) is a wrapper of the transaction implementations, when the SQL statements are executed using a stand-alone session context, `LazyTxn` will be used to do things like：
 - Return the memory buffer for write.
 - Set specific operations or flags for the current transaction.
 - Return the snapshot of this transaction.
 - Commit the current transaction.
 - Lock specific keys.
 - etc...
+
 
 # The Statement Execution
 
