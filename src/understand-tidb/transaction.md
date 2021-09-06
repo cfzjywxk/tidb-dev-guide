@@ -100,8 +100,12 @@ The memory buffer is a ordered map and it provides the `staging` and `discard` u
 
 # The Two Phase Commit
 
-After the statement execution phase, the `commit` statement will trigger the commit phase for the current transaction. In TiDB the percolator protocol is used as the distributed transaction protocol, it's a two phase protocol. In the first stage, the transaction coordinator(tidb server) will try to prewrite all the related keys, if all of them are succeessful the transaction coordinator will commit the primary key, after that the transaction is considered succesfully committed, all the other keys will be committed asyncronouslly.
+After the statement execution phase, the `commit` statement will trigger the commit phase for the current transaction. In TiDB the [percolator](https://tikv.org/deep-dive/distributed-transaction/percolator/) protocol is used as the distributed transaction protocol, it's a two phase protocol. In the first stage, the transaction coordinator(tidb server) will try to prewrite all the related keys, if all of them are succeessful the transaction coordinator will commit the primary key, after that the transaction is considered succesfully committed, all the other keys will be committed asyncronouslly.
 
 All the changes in the transaction memory buffer will be converted into [mutations](https://github.com/pingcap/kvproto/blob/master/proto/kvrpcpb.proto#L882) which will be used by the two phase committer. These mutations will be grouped by their region locations, and prewrite requests will be sent to their region leaders.
 
 If all the prewrite requests are processed successfully, the commit request for the primary key will be sent to `tikv` first. If the primary key commit is successful, the transaction is consisdered commmitted and will response the client ok results.
+
+# Summary
+
+This section talks about the brief steps of tranaction processing in the `tidb` part, and related interfaces and implementations. 
