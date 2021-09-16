@@ -76,4 +76,4 @@ In TiDB a transaction is considered committed only if its primary key lock is co
 |Default |{user_key}{start_ts}	| user_value |
 |Write	 |{user_key}{commit_ts}	| write_info |
 
-After `prewrite`, the lock correspond records for the transaction will be written into the storage. Read and write conflicts on the "locked" key will need to consider if it's safe to bypass the lock or it must try to resolve the encountered lock.
+After `prewrite`, the lock correspond records for the transaction will be written into the storage. Read and write conflicts on the "locked" key will need to consider if it's safe to bypass the lock or it must try to resolve the encountered locks. As `commit_ts` is part of the stored key, there could be different historical versions for it, and GC is responsible to clean up all the old versions which will not be needed, GC will be introduced in another document.
