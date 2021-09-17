@@ -1,12 +1,12 @@
 # Transaction In TiKV
 
-The previous [document](./transaction.md) introduces the architecture of the transaction engine and some implementation details in the `TiDB` part. This document is mainly about the `TiKV` part.
+The previous [document](./transaction.md) introduces the architecture of the transaction engine and some implementation details in `TiDB` part. This document is mainly about the `TiKV` part.
 
-As described in the previous docuemnt, the distributed transaction coordinator the `tidb-server` which process the user `COMMIT` query, and the participants are invovled `tikv-servers`.
+As described in the previous [docuemnt](./transaction.md), the distributed transaction coordinator is the `tidb-server` which receives and processes the user `COMMIT` query, and the transaction participants are invovled `tikv-servers`.
 
 # Transactional Protocol
 
-Based on the percolator model, the mainly RPC interfaces used in TiDB are described in proto [file](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L77). These interfaces will be used by the transaction coordinator to drive the whole transaction commit processing, for example `Prewrite` will be used to write the lock record in TiKV:
+Based on the percolator model, the RPC interfaces used in TiDB are described in proto [file](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L77). They will be used by the transaction coordinator to drive the whole commit process, for example `Prewrite` will be used to write the lock record in TiKV:
 ```
 message PrewriteRequest {
     Context context = 1;
@@ -45,8 +45,11 @@ message PrewriteRequest {
 
 The `mutations` are changes made by the transaction, `start_version` is the transaction identifier fetched from PD, `for_update_ts` is used by the pessimistic transactions which will be introduced seperately. The `try_one_pc` field is about committing the transaction using `one-phase` protocol, the `use_async_commit` and `secondaries` will be used if the transaction is committing in the `async-commit` mode, these optimizations will be introduced seperately in other documents.
 
-Besides `prewrite` request, there are some other important request types such as `commit` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L268) which is used to commit a key and `pessimistic_lock` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L125) is used to lock a key.
-The `resolve` (request)[https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L374] will be used to help doing the transaction crash recovery, it will also be introduced in another document.
+Besides `prewrite` request, there are some other important request types:
+- `pessimistic_lock` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L125) is used to lock a key. Note pessimistic locking happens in the transaction execution phase, for example a `select for update` statment will need to pessimistically lock the correspond rows.
+- `commit` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L268) which is used to commit a key. After commit the write content is visible to other read or write transactions.
+- `check_txn_status` [request](https://github.com/pingcap/kvproto/blob/master/proto/kvrpcpb.proto#L206) will be used to check the status of a given transaction, so that it could be decided how to process the conflicts.
+- `resolve` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L374) will be used to help doing the transaction crash recovery, it will also be introduced in another document in details.
 
 # Transaction Scheduler
 
