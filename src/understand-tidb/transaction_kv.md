@@ -84,6 +84,14 @@ In TiDB a transaction is considered committed only if its primary key lock is co
 
 After `prewrite`, the lock correspond records for the transaction will be written into the storage. Read and write conflicts on the "locked" key will need to consider if it's safe to bypass the lock or it must try to resolve the encountered locks. As `commit_ts` is part of the stored key, there could be different historical versions for it, and GC is responsible to clean up all the old versions which will not be needed, GC will be introduced in another document.
 
-# Recovery
+# Transaction Recovery
 
+In TiDB the transaction coordinator(in `tidb-server`) is stateless and it will not persist any information. If the transaction coordinator fails for example the `tidb-server` crashes, the transaction context in memory will get lost, and as the coordinator is gone the normal commit processing will stop. How to recover the transaction state and make a decision if it should commit or abort? Actually there is no special mechanism to recover the failed transctions, the recovery is done by other conflict concurrent transactions, or the conflict transactions will help decide the actual states for the failed tranactions. The lock resolve process will be triggered if current ongoing transaction encounters conflicts with other transaction locks doing reads or writes. The whole process will be introduced in other documents in details.
 
+# Transaction Optimizations
+
+Normally the transaction commit will need two pahses, the `prewrite` phase and `commit` phase. Under certain circumstances transaction commit could be done in a single phase for example the generated transaction mutations could be processed by a single region leader. This optimization is called one-phase commit in TiDB. The final transaction status is determined by the commit status of the primary key lock, so the reponse to the client has to wait until the primary key commit has finished. This wait could be saved using the `async-commit` protocol so the latency of commit could be reduced. They will both be introduced in another document in details.
+
+# Summary
+
+This section talks about the brief steps of tranaction processing in the TiKV part, and related interfaces, implementations and optimizations.
