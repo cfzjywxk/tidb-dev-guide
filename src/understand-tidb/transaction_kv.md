@@ -50,6 +50,7 @@ Besides `prewrite` request, there are some other important request types:
 - `commit` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L268) which is used to commit a key. After commit the write content is visible to other read or write transactions.
 - `check_txn_status` [request](https://github.com/pingcap/kvproto/blob/master/proto/kvrpcpb.proto#L206) will be used to check the status of a given transaction, so that it could be decided how to process the conflicts.
 - `resolve` [request](https://github.com/pingcap/kvproto/blob/0f5764a128ad77ccf0a5b0ce0d6e2bfa50a108ce/proto/kvrpcpb.proto#L374) will be used to help doing the transaction crash recovery, it will also be introduced in another document in details.
+- `check_secondary_locks` [request](https://github.com/pingcap/kvproto/blob/master/proto/kvrpcpb.proto#L247) is a special API, it will be used if the commit mode of the transaction is `async-commit`, it will also be introduced in another document in details.
 
 # Transaction Scheduler
 
